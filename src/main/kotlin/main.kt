@@ -6,22 +6,30 @@ import org.openqa.selenium.support.ui.WebDriverWait
 import org.openqa.selenium.JavascriptExecutor
 import org.openqa.selenium.WebDriver
 import org.openqa.selenium.support.ui.ExpectedCondition
+import org.openqa.selenium.support.ui.ExpectedConditions
+import org.openqa.selenium.WebElement
+import org.openqa.selenium.remote.RemoteWebElement
 
+data class Credentials(val email: String, val password: String)
+
+const val timeOut: Long = 10
 
 fun main() {
     val driver = ChromeDriver()
     try {
-        seznamEmail(driver)
-
+        println("Přečteno: ${seznamEmail(driver, 2)} eRmailů.")
+        print("Stiskni enter pro ukončení:")
         readLine()
+        driver.close()
     } catch (exception: Exception) {
         exception.printStackTrace()
-    } finally {
-//        driver.close()
     }
 }
 
-private fun seznamEmail(driver: ChromeDriver) {
+private fun seznamEmail(driver: ChromeDriver, maxReadEmailCount: Int = 1): Int {
+    var readEmailCountdown = maxReadEmailCount
+    val emailsTab = driver.windowHandle
+
     val (email, password) = readLoginCredentials("Přihlášení do emailu")
 
     driver.get("https://email.seznam.cz")
@@ -30,49 +38,86 @@ private fun seznamEmail(driver: ChromeDriver) {
     val loginForm = driver.findElementByCssSelector("form.login")
     loginForm.findElement(By.id("login-username")).sendKeys(email)
     loginForm.findElement(By.id("login-password")).sendKeys(password)
-    loginForm.findElement(By.cssSelector("button[type=submit]")).click()
+    loginForm.findElement(By.cssSelector("button[type=submit]")).submit()
 
-    waitForLoad(driver)
+//    waitForLoad(driver)
 
     //  choose eRmail folder
-    val eRmailFolder = driver.findElementByPartialLinkText("eRmail")
+    val eRmailFolder = driver.waitForClickableElement(By.cssSelector("a[href*=eRmail]"))
     eRmailFolder.click()
 
-    waitForLoad(driver)
-
     //  go through unread emails
-    val emailList = driver.findElementByCssSelector("#list .message-list")
-    println(emailList.getAttribute("class"))
-    for (unreadEmail in emailList.findElements(By.cssSelector(".unread a"))) {
+    while (readEmailCountdown > 0) {
+        val unreadEmail = driver.waitForClickableElement(
+                By.cssSelector("#list .message-list .unread a[href*=eRmail]")
+        )
+        // open unread email
         unreadEmail.click()
-        break
+        // open eRmail
+        driver.waitForClickableElement(By.cssSelector(".message .body a[href*='ermail.cz/urlbind/']")).click()
+        readEmailCountdown--
+        // switch tab back to email client
+        driver.switchTo().window(emailsTab)
+        // go back to email list
+        driver.navigate().back()
     }
+
+    Thread.sleep(6_000)
+    driver.closeAllRightTabs(emailsTab)
+    driver.switchTab(emailsTab)
+
+    return maxReadEmailCount - readEmailCountdown
 
 }
 
-fun waitForLoad(driver: WebDriver) {
+private inline fun WebDriver.switchTab(tab: String): WebDriver = switchTo().window(tab)
+
+/**
+ * Closes all tabs on right side of tab.
+ */
+private fun WebDriver.closeAllRightTabs(tab: String) {
+    val tabs = ArrayList(this.windowHandles)
+    val tabIndex = tabs.indexOf(tab) + 1
+    for (index in tabIndex until tabs.size) {
+        this.switchTab(tabs[index]).close()
+    }
+}
+
+private fun WebElement.waitForClickableElement(by: By): WebElement {
+    return WebDriverWait((this as RemoteWebElement).wrappedDriver, timeOut).until(ExpectedConditions.elementToBeClickable(by))
+}
+
+private fun WebDriver.waitForElement(by: By): WebElement {
+    return WebDriverWait(this, timeOut).until(ExpectedConditions.visibilityOfElementLocated(by))
+}
+
+private fun WebDriver.waitForClickableElement(by: By): WebElement {
+    return WebDriverWait(this, timeOut).until(ExpectedConditions.elementToBeClickable(by))
+}
+
+private fun waitForLoad(driver: WebDriver) {
     val pageLoadCondition =
-        ExpectedCondition {
-            (it as JavascriptExecutor).executeScript("return document.readyState") == "complete"
-        }
-    val wait = WebDriverWait(driver, 30)
+            ExpectedCondition {
+                (it as JavascriptExecutor).executeScript("return document.readyState") == "complete"
+            }
+    val wait = WebDriverWait(driver, timeOut)
     wait.until(pageLoadCondition)
 }
 
-fun readLoginCredentials(title: String): Array<String> {
+private fun readLoginCredentials(title: String): Credentials {
     val textIO = TextIoFactory.getTextIO()
     textIO.textTerminal.println(title)
 
     val email = textIO.newStringInputReader()
-        .read("Email")
+            .read("Email")
 
     val password = textIO.newStringInputReader()
-        .withInputMasking(true)
-        .read("Password")
+            .withInputMasking(true)
+            .read("Password")
 
     textIO.dispose()
 
-    return arrayOf(email, password)
+    return Credentials(email, password)
 }
 
 fun readLogin(): Array<String> {
