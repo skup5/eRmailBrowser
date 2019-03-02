@@ -1,6 +1,5 @@
 import org.openqa.selenium.By
 import org.openqa.selenium.chrome.ChromeDriver
-import java.io.Console
 import org.beryx.textio.TextIoFactory
 import org.openqa.selenium.support.ui.WebDriverWait
 import org.openqa.selenium.JavascriptExecutor
@@ -12,32 +11,71 @@ import org.openqa.selenium.remote.RemoteWebElement
 
 data class Credentials(val email: String, val password: String)
 
+object Console {
+    private val textIO = TextIoFactory.getTextIO()
+
+    /**
+     * Prints a message that possibly contains line separators.
+     */
+    fun print(msg: String = "") = textIO.textTerminal.print(msg)
+
+    /**
+     * Prints a message that possibly contains line separators and subsequently prints a line separator.
+     */
+    fun println(msg: String = "") = textIO.textTerminal.println(msg)
+
+    /**
+     * @param prompt the messages to be displayed for prompting the user to enter the value
+     */
+    fun readLine(prompt: String = ""): String = textIO.newStringInputReader().read(prompt)
+
+    /**
+     * User will see just * instead of right characters.
+     * @param prompt the messages to be displayed for prompting the user to enter the value
+     */
+    fun readPassword(prompt: String = ""): String = textIO.newStringInputReader()
+        .withInputMasking(true)
+        .read(prompt)
+
+    /**
+     * Closes console.
+     */
+    fun exit() = textIO.dispose()
+
+    /**
+     * @param prompt the messages to be displayed for prompting the user to enter the value
+     */
+    fun readNumber(prompt: String = ""): Number = textIO.newDoubleInputReader().read(prompt)
+}
+
 const val timeOut: Long = 10
 
 fun main() {
     val driver = ChromeDriver()
     try {
-        println("Přečteno: ${seznamEmail(driver, 2)} eRmailů.")
-        print("Stiskni enter pro ukončení:")
-        readLine()
+        val credentials = readLoginCredentials("Přihlášení do emailu")
+        val maxReadEmailCount = Console.readNumber("Maximum otevřených emailů")
+        Console.println("Přečteno: ${seznamEmail(driver, credentials, maxReadEmailCount.toInt())} eRmailů.")
+        Console.print("Stiskni enter pro ukončení:")
+        Console.readLine()
         driver.close()
     } catch (exception: Exception) {
         exception.printStackTrace()
+    } finally {
+        Console.exit()
     }
 }
 
-private fun seznamEmail(driver: ChromeDriver, maxReadEmailCount: Int = 1): Int {
+private fun seznamEmail(driver: ChromeDriver, credentials: Credentials, maxReadEmailCount: Int = 1): Int {
     var readEmailCountdown = maxReadEmailCount
     val emailsTab = driver.windowHandle
-
-    val (email, password) = readLoginCredentials("Přihlášení do emailu")
 
     driver.get("https://email.seznam.cz")
 
     //  login
     val loginForm = driver.findElementByCssSelector("form.login")
-    loginForm.findElement(By.id("login-username")).sendKeys(email)
-    loginForm.findElement(By.id("login-password")).sendKeys(password)
+    loginForm.findElement(By.id("login-username")).sendKeys(credentials.email)
+    loginForm.findElement(By.id("login-password")).sendKeys(credentials.password)
     loginForm.findElement(By.cssSelector("button[type=submit]")).submit()
 
 //    waitForLoad(driver)
@@ -49,7 +87,7 @@ private fun seznamEmail(driver: ChromeDriver, maxReadEmailCount: Int = 1): Int {
     //  go through unread emails
     while (readEmailCountdown > 0) {
         val unreadEmail = driver.waitForClickableElement(
-                By.cssSelector("#list .message-list .unread a[href*=eRmail]")
+            By.cssSelector("#list .message-list .unread a[href*=eRmail]")
         )
         // open unread email
         unreadEmail.click()
@@ -84,7 +122,10 @@ private fun WebDriver.closeAllRightTabs(tab: String) {
 }
 
 private fun WebElement.waitForClickableElement(by: By): WebElement {
-    return WebDriverWait((this as RemoteWebElement).wrappedDriver, timeOut).until(ExpectedConditions.elementToBeClickable(by))
+    return WebDriverWait(
+        (this as RemoteWebElement).wrappedDriver,
+        timeOut
+    ).until(ExpectedConditions.elementToBeClickable(by))
 }
 
 private fun WebDriver.waitForElement(by: By): WebElement {
@@ -97,57 +138,16 @@ private fun WebDriver.waitForClickableElement(by: By): WebElement {
 
 private fun waitForLoad(driver: WebDriver) {
     val pageLoadCondition =
-            ExpectedCondition {
-                (it as JavascriptExecutor).executeScript("return document.readyState") == "complete"
-            }
+        ExpectedCondition {
+            (it as JavascriptExecutor).executeScript("return document.readyState") == "complete"
+        }
     val wait = WebDriverWait(driver, timeOut)
     wait.until(pageLoadCondition)
 }
 
 private fun readLoginCredentials(title: String): Credentials {
-    val textIO = TextIoFactory.getTextIO()
-    textIO.textTerminal.println(title)
-
-    val email = textIO.newStringInputReader()
-            .read("Email")
-
-    val password = textIO.newStringInputReader()
-            .withInputMasking(true)
-            .read("Password")
-
-    textIO.dispose()
-
+    Console.println(title)
+    val email = Console.readLine("Email")
+    val password = Console.readPassword("Password")
     return Credentials(email, password)
-}
-
-fun readLogin(): Array<String> {
-    //Best to declare Console as a nullable type since System.console() may return null
-    val console: Console? = System.console()
-
-    when (console) {
-        //In this case, the JVM is not connected to the console so we need to exit
-        null -> {
-            println("Not connected to console. Exiting")
-            System.exit(-1)
-        }
-        //Otherwise we can proceed normally
-        else -> {
-            val userName = console.readLine("Email:")
-            val pw = console.readPassword("Password:")
-            val credentials = arrayOf(userName, pw.toString())
-
-            //This is important! We don't know when the character array
-            //will get garbage collected and we don't want it to sit around
-            //in memory holding the password. We can't control when the array
-            //gets garbage collected, but we can overwrite the password with
-            //blank spaces so that it doesn't hold the password.
-            for (i in 0 until pw.size) {
-                pw[i] = ' '
-            }
-
-            return credentials
-        }
-    }
-
-    return emptyArray()
 }
