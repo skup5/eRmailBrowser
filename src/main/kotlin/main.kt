@@ -50,7 +50,7 @@ object Console {
 
 const val timeOut: Long = 10
 
-fun main() {
+fun main(args: Array<String>) {
     val driver = ChromeDriver()
     try {
         val credentials = readLoginCredentials("Přihlášení do emailu")
