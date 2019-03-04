@@ -1,12 +1,9 @@
-import org.openqa.selenium.By
 import org.openqa.selenium.chrome.ChromeDriver
 import org.beryx.textio.TextIoFactory
+import org.openqa.selenium.*
 import org.openqa.selenium.support.ui.WebDriverWait
-import org.openqa.selenium.JavascriptExecutor
-import org.openqa.selenium.WebDriver
 import org.openqa.selenium.support.ui.ExpectedCondition
 import org.openqa.selenium.support.ui.ExpectedConditions
-import org.openqa.selenium.WebElement
 import org.openqa.selenium.remote.RemoteWebElement
 
 data class Credentials(val email: String, val password: String)
@@ -27,7 +24,9 @@ object Console {
     /**
      * @param prompt the messages to be displayed for prompting the user to enter the value
      */
-    fun readLine(prompt: String = ""): String = textIO.newStringInputReader().read(prompt)
+    fun readLine(prompt: String = ""): String = textIO.newStringInputReader()
+        .withMinLength(0)
+        .read(prompt)
 
     /**
      * User will see just * instead of right characters.
@@ -51,10 +50,10 @@ object Console {
 const val timeOut: Long = 10
 
 fun main(args: Array<String>) {
-    val driver = ChromeDriver()
     try {
         val credentials = readLoginCredentials("Přihlášení do emailu")
         val maxReadEmailCount = Console.readNumber("Maximum otevřených emailů")
+        val driver = ChromeDriver()
         Console.println("Přečteno: ${seznamEmail(driver, credentials, maxReadEmailCount.toInt())} eRmailů.")
         Console.print("Stiskni enter pro ukončení:")
         Console.readLine()
@@ -81,26 +80,31 @@ private fun seznamEmail(driver: ChromeDriver, credentials: Credentials, maxReadE
 //    waitForLoad(driver)
 
     //  choose eRmail folder
-    val eRmailFolder = driver.waitForClickableElement(By.cssSelector("a[href*=eRmail]"))
-    eRmailFolder.click()
+    driver.waitForClickableElement(By.cssSelector("a[href*=eRmail]")).click()
 
     //  go through unread emails
     while (readEmailCountdown > 0) {
-        val unreadEmail = driver.waitForClickableElement(
-            By.cssSelector("#list .message-list .unread a[href*=eRmail]")
-        )
-        // open unread email
-        unreadEmail.click()
-        // open eRmail
-        driver.waitForClickableElement(By.cssSelector(".message .body a[href*='ermail.cz/urlbind/']")).click()
-        readEmailCountdown--
-        // switch tab back to email client
-        driver.switchTo().window(emailsTab)
-        // go back to email list
-        driver.navigate().back()
+        try {
+            // open unread email
+            driver.waitForClickableElement(
+                By.cssSelector("#list .message-list .unread a[href*=eRmail]")
+            ).click()
+            // open eRmail
+            driver.waitForClickableElement(
+                By.cssSelector(".message .body a[href*='ermail.cz/urlbind/']")
+            ).click()
+            Thread.sleep(500)
+            readEmailCountdown--
+            // switch tab back to email client
+            driver.switchTo().window(emailsTab)
+            // go back to email list
+            driver.navigate().back()
+        } catch (exception: WebDriverException) {
+            exception.printStackTrace()
+        }
     }
 
-    Thread.sleep(6_000)
+    Thread.sleep(5_000)
     driver.closeAllRightTabs(emailsTab)
     driver.switchTab(emailsTab)
 
