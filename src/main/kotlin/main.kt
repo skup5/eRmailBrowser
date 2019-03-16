@@ -47,7 +47,7 @@ object Console {
     fun readNumber(prompt: String = ""): Number = textIO.newDoubleInputReader().read(prompt)
 }
 
-const val timeOut: Long = 10
+const val timeOut: Long = 45
 
 fun main(args: Array<String>) {
     try {
