@@ -1,10 +1,10 @@
-import org.openqa.selenium.chrome.ChromeDriver
 import org.beryx.textio.TextIoFactory
-import org.openqa.selenium.*
-import org.openqa.selenium.support.ui.WebDriverWait
+import org.openqa.selenium.JavascriptExecutor
+import org.openqa.selenium.WebDriver
+import org.openqa.selenium.chrome.ChromeDriver
+import org.openqa.selenium.remote.RemoteWebDriver
 import org.openqa.selenium.support.ui.ExpectedCondition
-import org.openqa.selenium.support.ui.ExpectedConditions
-import org.openqa.selenium.remote.RemoteWebElement
+import org.openqa.selenium.support.ui.WebDriverWait
 
 data class Credentials(val email: String, val password: String)
 
@@ -54,7 +54,8 @@ fun main(args: Array<String>) {
         val credentials = readLoginCredentials("Přihlášení do emailu")
         val maxReadEmailCount = Console.readNumber("Maximum otevřených emailů")
         val driver = ChromeDriver()
-        Console.println("Přečteno: ${seznamEmail(driver, credentials, maxReadEmailCount.toInt())} eRmailů.")
+        val ermailBrowser = createBrowser(driver, credentials)
+        Console.println("Přečteno: ${ermailBrowser.read(maxReadEmailCount.toInt())} eRmailů.")
         Console.print("Stiskni enter pro ukončení:")
         Console.readLine()
         driver.close()
@@ -65,79 +66,13 @@ fun main(args: Array<String>) {
     }
 }
 
-private fun seznamEmail(driver: ChromeDriver, credentials: Credentials, maxReadEmailCount: Int = 1): Int {
-    var readEmailCountdown = maxReadEmailCount
-    val emailsTab = driver.windowHandle
-
-    driver.get("https://email.seznam.cz")
-
-    //  login
-    val loginForm = driver.findElementByCssSelector("form.login")
-    loginForm.findElement(By.id("login-username")).sendKeys(credentials.email)
-    loginForm.findElement(By.id("login-password")).sendKeys(credentials.password)
-    loginForm.findElement(By.cssSelector("button[type=submit]")).submit()
-
-//    waitForLoad(driver)
-
-    //  choose eRmail folder
-    driver.waitForClickableElement(By.cssSelector("a[href*=eRmail]")).click()
-
-    //  go through unread emails
-    while (readEmailCountdown > 0) {
-        try {
-            // open unread email
-            driver.waitForClickableElement(
-                By.cssSelector("#list .message-list .unread a[href*=eRmail]")
-            ).click()
-            // open eRmail
-            driver.waitForClickableElement(
-                By.cssSelector(".message .body a[href*='ermail.cz/urlbind/']")
-            ).click()
-            Thread.sleep(500)
-            readEmailCountdown--
-            // switch tab back to email client
-            driver.switchTo().window(emailsTab)
-            // go back to email list
-            driver.navigate().back()
-        } catch (exception: WebDriverException) {
-            exception.printStackTrace()
-        }
+fun createBrowser(driver: RemoteWebDriver, credentials: Credentials): ErmailBrowser {
+    val browser: ErmailBrowser
+    when {
+        credentials.email.endsWith("seznam.cz") -> browser = SeznamBrowser(driver, credentials)
+        else -> browser = GmailBrowser(driver, credentials)
     }
-
-    Thread.sleep(5_000)
-    driver.closeAllRightTabs(emailsTab)
-    driver.switchTab(emailsTab)
-
-    return maxReadEmailCount - readEmailCountdown
-
-}
-
-private inline fun WebDriver.switchTab(tab: String): WebDriver = switchTo().window(tab)
-
-/**
- * Closes all tabs on right side of tab.
- */
-private fun WebDriver.closeAllRightTabs(tab: String) {
-    val tabs = ArrayList(this.windowHandles)
-    val tabIndex = tabs.indexOf(tab) + 1
-    for (index in tabIndex until tabs.size) {
-        this.switchTab(tabs[index]).close()
-    }
-}
-
-private fun WebElement.waitForClickableElement(by: By): WebElement {
-    return WebDriverWait(
-        (this as RemoteWebElement).wrappedDriver,
-        timeOut
-    ).until(ExpectedConditions.elementToBeClickable(by))
-}
-
-private fun WebDriver.waitForElement(by: By): WebElement {
-    return WebDriverWait(this, timeOut).until(ExpectedConditions.visibilityOfElementLocated(by))
-}
-
-private fun WebDriver.waitForClickableElement(by: By): WebElement {
-    return WebDriverWait(this, timeOut).until(ExpectedConditions.elementToBeClickable(by))
+    return browser
 }
 
 private fun waitForLoad(driver: WebDriver) {
