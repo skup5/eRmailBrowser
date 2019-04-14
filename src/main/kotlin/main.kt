@@ -36,7 +36,7 @@ fun createBrowser(driver: RemoteWebDriver, credentials: Credentials): ErmailBrow
     val browser: ErmailBrowser
     when {
         credentials.email.endsWith("seznam.cz") -> browser = SeznamBrowser(driver, credentials)
-        else -> browser = GmailBrowser(driver, credentials)
+        else -> browser = OriginErmailBrowser(driver, credentials)
     }
     return browser
 }

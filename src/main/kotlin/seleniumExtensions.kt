@@ -7,6 +7,12 @@ import org.openqa.selenium.support.ui.WebDriverWait
 
 inline fun WebDriver.switchTab(tab: String): WebDriver = switchTo().window(tab)
 
+fun WebDriver.switchToLastTab() {
+    val tabs = ArrayList(this.windowHandles)
+    if (tabs.isNotEmpty())
+        this.switchTab(tabs[tabs.size - 1])
+}
+
 /**
  * Closes all tabs on right side of tab.
  */
@@ -20,8 +26,8 @@ fun WebDriver.closeAllRightTabs(tab: String) {
 
 fun WebElement.waitForClickableElement(by: By): WebElement {
     return WebDriverWait(
-        (this as RemoteWebElement).wrappedDriver,
-        TIME_OUT
+            (this as RemoteWebElement).wrappedDriver,
+            TIME_OUT
     ).until(ExpectedConditions.elementToBeClickable(by))
 }
 
