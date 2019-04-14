@@ -21,14 +21,14 @@ fun WebDriver.closeAllRightTabs(tab: String) {
 fun WebElement.waitForClickableElement(by: By): WebElement {
     return WebDriverWait(
         (this as RemoteWebElement).wrappedDriver,
-        timeOut
+        TIME_OUT
     ).until(ExpectedConditions.elementToBeClickable(by))
 }
 
 fun WebDriver.waitForElement(by: By): WebElement {
-    return WebDriverWait(this, timeOut).until(ExpectedConditions.visibilityOfElementLocated(by))
+    return WebDriverWait(this, TIME_OUT).until(ExpectedConditions.visibilityOfElementLocated(by))
 }
 
 fun WebDriver.waitForClickableElement(by: By): WebElement {
-    return WebDriverWait(this, timeOut).until(ExpectedConditions.elementToBeClickable(by))
+    return WebDriverWait(this, TIME_OUT).until(ExpectedConditions.elementToBeClickable(by))
 }
