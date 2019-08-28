@@ -34,6 +34,23 @@ object Console {
             .read(prompt)
 
     /**
+     * Waits to user key press action.
+     */
+    fun pause() {
+        textIO.newCharInputReader().withDefaultValue('.').read()
+    }
+
+    /**
+     * Prints error message.
+     */
+    fun error(errorMsg: String) {
+        textIO.textTerminal.executeWithPropertiesConfigurator(
+                { props -> props.setPromptColor("red") },
+                { terminal -> terminal.println(errorMsg) }
+        )
+    }
+
+    /**
      * Closes console.
      */
     fun exit() = textIO.dispose()
