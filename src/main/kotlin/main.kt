@@ -2,7 +2,6 @@ import org.openqa.selenium.SessionNotCreatedException
 import org.openqa.selenium.chrome.ChromeDriver
 import org.openqa.selenium.remote.RemoteWebDriver
 import java.util.logging.Logger
-import kotlin.system.exitProcess
 
 
 data class Credentials(val email: String, val password: String)
@@ -28,6 +27,7 @@ fun main(args: Array<String>) {
             val answer = Console.readLine()
             again = answer.isNotEmpty() && answer[0] == 'a'
         } while (again)
+        log.info("closing...")
         driver.close()
         exitStatus = 0
     } catch (exception: SessionNotCreatedException){
